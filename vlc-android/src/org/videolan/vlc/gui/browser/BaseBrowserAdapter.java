@@ -116,11 +116,12 @@ public class BaseBrowserAdapter extends  RecyclerView.Adapter<RecyclerView.ViewH
             @Override
             public void onClick(View v) {
                 MediaWrapper mw = (MediaWrapper) getItem(holder.getAdapterPosition());
-                if (mw.getType() == MediaWrapper.TYPE_DIR)
+                final int type = mw.getType();
+                if (type == MediaWrapper.TYPE_DIR || type == MediaWrapper.TYPE_ARCHIVE)
                     fragment.browse(mw, holder.getAdapterPosition());
-                else if (mw.getType() == MediaWrapper.TYPE_VIDEO)
+                else if (type == MediaWrapper.TYPE_VIDEO)
                     Util.openMedia(v.getContext(), mw);
-                else  if (mw.getType() == MediaWrapper.TYPE_AUDIO) {
+                else if (type == MediaWrapper.TYPE_AUDIO) {
                     int position = 0;
                     LinkedList<MediaWrapper> mediaLocations = new LinkedList<MediaWrapper>();
                     MediaWrapper mediaItem;
@@ -331,6 +332,8 @@ public class BaseBrowserAdapter extends  RecyclerView.Adapter<RecyclerView.ViewH
                 return R.drawable.ic_browser_video_normal;
             case MediaWrapper.TYPE_SUBTITLE:
                 return R.drawable.ic_browser_subtitle_normal;
+            case MediaWrapper.TYPE_ARCHIVE:
+                return R.drawable.ic_browser_archive_normal;
             default:
                 return R.drawable.ic_browser_unknown_normal;
         }
