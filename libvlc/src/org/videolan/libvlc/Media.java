@@ -21,11 +21,18 @@
 package org.videolan.libvlc;
 
 import android.net.Uri;
+import android.util.Log;
+
+import org.videolan.libvlc.util.HWDecoderUtil;
 
 import java.io.FileDescriptor;
+import java.util.ArrayList;
+import java.util.Collection;
 
 public class Media extends VLCObject {
     private final static String TAG = "LibVLC/Media";
+
+    private static final String DEFAULT_CODEC_OPTION = ":codec=mediacodec_ndk,mediacodec_jni,iomx,all";
 
     /**
      * libvlc_media_type_t
@@ -224,6 +231,7 @@ public class Media extends VLCObject {
     private long mDuration;
     private int mState = State.NothingSpecial;
     private int mType = Type.Unknown;
+    private ArrayList<String> mOptions = new ArrayList<String>();
 
     /**
      * Create a Media from libVLC and a local path starting with '/'.
@@ -464,7 +472,41 @@ public class Media extends VLCObject {
      * @param option ":option" or ":option=value"
      */
     public synchronized void addOption(String option) {
+        for (int i = 0; i < mOptions.size(); ++i) {
+            if (mOptions.get(i).startsWith(":codec=")) {
+                mOptions.remove(i);
+                break;
+            }
+        }
+
+        mOptions.add(option);
         nativeAddOption(option);
+    }
+
+    protected void setMediaPlayerOptions() {
+        String codecOption = null;
+
+        for (String option : mOptions) {
+            if (option.startsWith(":codec=")) {
+                codecOption = option;
+                break;
+            }
+        }
+        if (codecOption == null) {
+            final HWDecoderUtil.Decoder decoder = HWDecoderUtil.getDecoderFromDevice();
+            if (decoder == HWDecoderUtil.Decoder.ALL)
+                codecOption = DEFAULT_CODEC_OPTION;
+            else {
+                final StringBuilder sb = new StringBuilder(":codec=");
+                if (decoder == HWDecoderUtil.Decoder.MEDIACODEC)
+                    sb.append("mediacodec_ndk,mediacodec_jni,");
+                else if (decoder == HWDecoderUtil.Decoder.OMX)
+                    sb.append("iomx,");
+                sb.append("all");
+                codecOption = sb.toString();
+            }
+            addOption(codecOption);
+        }
     }
 
     @Override

@@ -23,6 +23,7 @@
 package org.videolan.libvlc;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 
 
@@ -70,6 +71,7 @@ public class MediaPlayer extends VLCObject {
             throw new IllegalArgumentException("Media is null or released");
         mMedia = media;
         mMedia.retain();
+        mMedia.setMediaPlayerOptions();
         nativeNewFromMedia(mMedia);
     }
 
@@ -87,6 +89,7 @@ public class MediaPlayer extends VLCObject {
             media.retain();
         }
         mMedia = media;
+        mMedia.setMediaPlayerOptions();
         nativeSetMedia(mMedia);
     }
 
