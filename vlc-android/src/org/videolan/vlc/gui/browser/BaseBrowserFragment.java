@@ -91,7 +91,6 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
     protected MediaWrapper mCurrentMedia;
     protected int mSavedPosition = -1, mFavorites = 0;
     public boolean mRoot;
-    protected LibVLC mLibVLC;
 
     private SparseArray<ArrayList<MediaWrapper>> mMediaLists = new SparseArray<ArrayList<MediaWrapper>>();
     private ArrayList<MediaWrapper> mediaList;
@@ -108,8 +107,6 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
 
     public void onCreate(Bundle bundle){
         super.onCreate(bundle);
-        mLibVLC = VLCInstance.get();
-        mMediaBrowser = new MediaBrowser(mLibVLC, this);
 
         if (bundle == null)
             bundle = getArguments();
@@ -143,10 +140,15 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
         return v;
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+        mMediaBrowser = new MediaBrowser(VLCInstance.get(), this);
+    }
+
     public void onStop(){
         super.onStop();
-        if (mMediaBrowser != null)
-            mMediaBrowser.release();
+        mMediaBrowser.release();
     }
 
     public void onSaveInstanceState(Bundle outState){
@@ -217,7 +219,6 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
 
     @Override
     public void onBrowseEnd() {
-        mMediaBrowser.release();
         mHandler.sendEmptyMessage(BrowserFragmentHandler.MSG_HIDE_LOADING);
         if (mReadyToDisplay)
             display();
@@ -516,7 +517,6 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
         public void onBrowseEnd() {
             if (mAdapter.isEmpty()) {
                 mCurrentParsedPosition = -1;
-                mMediaBrowser.release();
                 return;
             }
             String holderText = getDescription(directories.size(), files.size());
@@ -544,7 +544,6 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
                     mMediaBrowser.browse(mw.getUri());
                 } else {
                     mCurrentParsedPosition = -1;
-                    mMediaBrowser.release();
                 }
             }
             directories .clear();
