@@ -57,6 +57,7 @@ import android.widget.RemoteViews;
 import android.widget.Toast;
 
 import org.videolan.libvlc.EventHandler;
+import org.videolan.libvlc.IVLCVout;
 import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.Media;
 import org.videolan.libvlc.MediaPlayer;
@@ -81,6 +82,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -114,6 +116,8 @@ public class PlaybackService extends Service {
     private boolean mPebbleEnabled;
     private PowerManager.WakeLock mWakeLock;
     private final AtomicBoolean mExpanding = new AtomicBoolean(false);
+    private static final Object SURFACE_LOCK = new Object();
+    private static PlaybackService sPlaybackService = null; // used only for setSurface
 
     private static boolean mWasPlayingAudio = false;
 
@@ -308,13 +312,34 @@ public class PlaybackService extends Service {
             unregisterReceiver(mRemoteControlClientReceiver);
             mRemoteControlClientReceiver = null;
         }
+
     }
+
 
     @Override
     public IBinder onBind(Intent intent) {
+        synchronized (SURFACE_LOCK) {
+            sPlaybackService = this;
+        }
         return mInterface;
     }
 
+    @Override
+    public boolean onUnbind(Intent intent) {
+        synchronized (SURFACE_LOCK) {
+            sPlaybackService = null;
+        }
+        return super.onUnbind(intent);
+    }
+
+    public static IVLCVout getVLCVout() throws RemoteException {
+        synchronized (SURFACE_LOCK) {
+            if (sPlaybackService == null)
+                throw new RemoteException();
+            return MediaPlayer().getVLCVout();
+        }
+    }
+    
     @TargetApi(Build.VERSION_CODES.FROYO)
     private void changeAudioFocus(boolean gain) {
         if (!AndroidUtil.isFroyoOrLater()) // NOP if not supported
@@ -1342,13 +1367,13 @@ public class PlaybackService extends Service {
         }
 
         @Override
-        public int getTime() throws RemoteException {
-            return (int) MediaPlayer().getTime();
+        public long getTime() throws RemoteException {
+            return MediaPlayer().getTime();
         }
 
         @Override
-        public int getLength() throws RemoteException {
-            return (int) MediaPlayer().getLength();
+        public long getLength() throws RemoteException {
+            return MediaPlayer().getLength();
         }
 
         /**
@@ -1549,63 +1574,184 @@ public class PlaybackService extends Service {
         }
 
         @Override
-        public String getCurrentMediaLocation() throws RemoteException {
+        public String getCurrentMediaLocation() {
             return mMediaListPlayer.getMediaList().getMRL(mCurrentIndex);
         }
 
         @Override
-        public MediaWrapper getCurrentMediaWrapper() throws RemoteException {
+        public MediaWrapper getCurrentMediaWrapper() {
             return PlaybackService.this.getCurrentMedia();
         }
 
         @Override
-        public void next() throws RemoteException {
+        public void next() {
             PlaybackService.this.next();
         }
 
         @Override
-        public void previous() throws RemoteException {
+        public void previous() {
             PlaybackService.this.previous();
         }
 
         @Override
-        public void shuffle() throws RemoteException {
+        public void shuffle() {
             PlaybackService.this.shuffle();
         }
 
         @Override
-        public void setRepeatType(int t) throws RemoteException {
+        public void setRepeatType(int t) {
             PlaybackService.this.setRepeatType(t);
         }
 
         @Override
-        public void setTime(long time) throws RemoteException {
+        public void setTime(long time) {
             MediaPlayer().setTime(time);
         }
 
         @Override
-        public boolean hasNext() throws RemoteException {
+        public boolean hasNext() {
             return mNextIndex != -1;
         }
 
         @Override
-        public boolean hasPrevious() throws RemoteException {
+        public boolean hasPrevious() {
             return mPrevIndex != -1;
         }
 
         @Override
-        public void detectHeadset(boolean enable) throws RemoteException {
+        public void detectHeadset(boolean enable) {
             mDetectHeadset = enable;
         }
 
         @Override
-        public float getRate() throws RemoteException {
+        public float getRate() {
             return MediaPlayer().getRate();
         }
 
         @Override
-        public void handleVout() throws RemoteException {
+        public void setRate(float rate) {
+            MediaPlayer().setRate(rate);
+        }
+
+
+        @Override
+        public void handleVout() {
             PlaybackService.this.handleVout();
+        }
+
+        @Override
+        public void navigate(int where) {
+            MediaPlayer().navigate(where);
+        }
+
+        @Override
+        public int getChapterCountForTitle(int title) {
+            return MediaPlayer().getChapterCountForTitle(title);
+        }
+
+        @Override
+        public int getTitleIdx() {
+            return MediaPlayer().getTitle();
+        }
+
+        @Override
+        public void setTitleIdx(int title) {
+            MediaPlayer().setTitle(title);
+        }
+
+        @Override
+        public int getTitleCount() {
+            return MediaPlayer().getTitleCount();
+        }
+
+        @Override
+        public int getVolume() {
+            return MediaPlayer().getVolume();
+        }
+
+        @Override
+        public int setVolume(int volume) {
+            return MediaPlayer().setVolume(volume);
+        }
+
+        @Override
+        public void setPosition(float pos) {
+            MediaPlayer().setPosition(pos);
+        }
+
+        @Override
+        public int getAudioTracksCount() {
+            return MediaPlayer().getAudioTracksCount();
+        }
+
+        @Override
+        public Map<Integer,String> getAudioTrackDescription() {
+            return MediaPlayer().getAudioTrackDescription();
+        }
+
+        @Override
+        public int getAudioTrack() {
+            return MediaPlayer().getAudioTrack();
+        }
+
+        @Override
+        public int setAudioTrack(int index) {
+            return MediaPlayer().setAudioTrack(index);
+        }
+
+        @Override
+        public int getVideoTracksCount() {
+            return MediaPlayer().getVideoTracksCount();
+        }
+
+        @Override
+        public int setVideoTrackEnabled(boolean enabled) {
+            return MediaPlayer().setVideoTrackEnabled(enabled);
+        }
+
+        @Override
+        public int addSubtitleTrack(String path) {
+            return MediaPlayer().addSubtitleTrack(path);
+        }
+
+        @Override
+        public Map<Integer,String> getSpuTrackDescription() {
+            return MediaPlayer().getSpuTrackDescription();
+        }
+
+        @Override
+        public int getSpuTrack() {
+            return MediaPlayer().getSpuTrack();
+        }
+
+        @Override
+        public int setSpuTrack(int index) {
+            return MediaPlayer().setSpuTrack(index);
+        }
+
+        @Override
+        public int getSpuTracksCount() {
+            return MediaPlayer().getSpuTracksCount();
+        }
+
+        @Override
+        public int setAudioDelay(long delay) {
+            return MediaPlayer().setAudioDelay(delay);
+        }
+
+        @Override
+        public long getAudioDelay() {
+            return MediaPlayer().getAudioDelay();
+        }
+
+        @Override
+        public int setSpuDelay(long delay) {
+            return MediaPlayer().setSpuDelay(delay);
+        }
+
+        @Override
+        public long getSpuDelay() {
+            return MediaPlayer().getSpuDelay();
         }
     };
 }

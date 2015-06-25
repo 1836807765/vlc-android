@@ -402,8 +402,8 @@ public class AudioPlayer extends Fragment implements PlaybackServiceClient.Callb
     public void updateProgress() {
         if (!mClient.isConnected())
             return;
-        int time = mClient.getTime();
-        int length = mClient.getLength();
+        int time = (int) mClient.getTime();
+        int length = (int) mClient.getLength();
 
         mHeaderTime.setText(Strings.millisToString(time));
         mLength.setText(Strings.millisToString(length));
@@ -707,7 +707,7 @@ public class AudioPlayer extends Fragment implements PlaybackServiceClient.Callb
             case MotionEvent.ACTION_DOWN:
                 (forward ? mNext : mPrevious).setImageResource(this.pressed);
 
-                possibleSeek = mClient.getTime();
+                possibleSeek = (int) mClient.getTime();
                 mPreviewingSeek = true;
                 vibrated = false;
                 length = mClient.getLength();

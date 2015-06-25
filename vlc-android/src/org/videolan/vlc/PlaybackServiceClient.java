@@ -30,11 +30,13 @@ import android.os.RemoteException;
 import android.support.annotation.MainThread;
 import android.util.Log;
 
+import org.videolan.libvlc.IVLCVout;
 import org.videolan.vlc.interfaces.IPlaybackService;
 import org.videolan.vlc.interfaces.IPlaybackServiceCallback;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class PlaybackServiceClient implements ServiceConnection {
     public static final String TAG = "PlaybackServiceClient";
@@ -463,16 +465,16 @@ public class PlaybackServiceClient implements ServiceConnection {
         }
     }
 
-    private static class GetLengthCmd extends Command<Integer> {
+    private static class GetLengthCmd extends Command<Long> {
         @Override
-        protected Integer run(IPlaybackService iService) throws RemoteException {
+        protected Long run(IPlaybackService iService) throws RemoteException {
             return iService.getLength();
         }
     }
 
-    private static class GetTimeCmd extends Command<Integer> {
+    private static class GetTimeCmd extends Command<Long> {
         @Override
-        protected Integer run(IPlaybackService iService) throws RemoteException {
+        protected Long run(IPlaybackService iService) throws RemoteException {
             return iService.getTime();
         }
     }
@@ -593,10 +595,235 @@ public class PlaybackServiceClient implements ServiceConnection {
         }
     }
 
+    private static class SetRateCmd extends Command<Void> {
+        final float rate;
+
+        private SetRateCmd(float rate) {
+            this.rate = rate;
+        }
+        @Override
+        protected Void run(IPlaybackService iService) throws RemoteException {
+            iService.setRate(rate); return null;
+        }
+    }
+
     private static class HandleVout extends Command<Void> {
         @Override
         protected Void run(IPlaybackService iService) throws RemoteException {
             iService.handleVout(); return null;
+        }
+    }
+
+    private static class NavigateCmd extends Command<Void> {
+        final int where;
+
+        private NavigateCmd(int where) {
+            this.where = where;
+        }
+        @Override
+        protected Void run(IPlaybackService iService) throws RemoteException {
+            iService.navigate(where); return null;
+        }
+    }
+
+    private static class GetChapterCountForTitleCmd extends Command<Integer> {
+        private final int title;
+        private GetChapterCountForTitleCmd(int title) {
+            this.title = title;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getChapterCountForTitle(title);
+        }
+    }
+
+    private static class GetTitleIdxCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getTitleIdx();
+        }
+    }
+
+    private static class SetTitleIdxCmd extends Command<Void> {
+        private final int title;
+        private SetTitleIdxCmd(int title) {
+            this.title = title;
+        }
+        @Override
+        protected Void run(IPlaybackService iService) throws RemoteException {
+            iService.setTitleIdx(title); return null;
+        }
+    }
+
+    private static class GetTitleCountCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getTitleCount();
+        }
+    }
+
+    private static class GetVolumeCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getVolume();
+        }
+    }
+
+    private static class SetVolumeCmd extends Command<Integer> {
+        private final int volume;
+        private SetVolumeCmd(int volume) {
+            this.volume = volume;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setVolume(volume);
+        }
+    }
+
+    private static class SetPositionCmd extends Command<Void> {
+        private final float pos;
+        private SetPositionCmd(float pos) {
+            this.pos = pos;
+        }
+        @Override
+        protected Void run(IPlaybackService iService) throws RemoteException {
+            iService.setPosition(pos); return null;
+        }
+    }
+
+    private static class GetAudioTracksCountCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getAudioTracksCount();
+        }
+    }
+
+    private static class GetAudioTrackDescriptionCmd extends Command<Map<Integer,String>> {
+        @Override
+        protected Map<Integer,String> run(IPlaybackService iService) throws RemoteException {
+            return iService.getAudioTrackDescription();
+        }
+    }
+
+    private static class GetAudioTrackCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getAudioTrack();
+        }
+    }
+
+    private static class SetAudioTrackCmd extends Command<Integer> {
+        final int index;
+        private SetAudioTrackCmd(int index) {
+            this.index = index;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setAudioTrack(index);
+        }
+    }
+
+    private static class GetVideoTracksCountCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getVideoTracksCount();
+        }
+    }
+
+    private static class SetVideoTrackEnabledCmd extends Command<Integer> {
+        final boolean enabled;
+        private SetVideoTrackEnabledCmd(boolean enabled) {
+            this.enabled = enabled;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setVideoTrackEnabled(enabled);
+        }
+    }
+
+    private static class AddSubtitleTrackCmd extends Command<Integer> {
+        final String path;
+        private AddSubtitleTrackCmd(String path) {
+            this.path = path;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.addSubtitleTrack(path);
+        }
+    }
+
+    private static class GetSpuTracksCountCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getSpuTracksCount();
+        }
+    }
+
+    private static class GetSpuTrackDescriptionCmd extends Command<Map<Integer,String>> {
+        @Override
+        protected Map<Integer,String> run(IPlaybackService iService) throws RemoteException {
+            return iService.getSpuTrackDescription();
+        }
+    }
+
+    private static class GetSpuTrackCmd extends Command<Integer> {
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.getSpuTrack();
+        }
+    }
+
+    private static class SetSpuTrackCmd extends Command<Integer> {
+        final int index;
+        private SetSpuTrackCmd(int index) {
+            this.index = index;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setSpuTrack(index);
+        }
+    }
+
+    private static class SetAudioDelayCmd extends Command<Integer> {
+        final long delay;
+        private SetAudioDelayCmd(long delay) {
+            this.delay = delay;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setAudioDelay(delay);
+        }
+    }
+
+    private static class GetAudioDelayCmd extends Command<Long> {
+        @Override
+        protected Long run(IPlaybackService iService) throws RemoteException {
+            return iService.getAudioDelay();
+        }
+    }
+
+    private static class SetSpuDelayCmd extends Command<Integer> {
+        final long delay;
+        private SetSpuDelayCmd(long delay) {
+            this.delay = delay;
+        }
+        @Override
+        protected Integer run(IPlaybackService iService) throws RemoteException {
+            return iService.setSpuDelay(delay);
+        }
+    }
+
+    private static class GetSpuDelayCmd extends Command<Long> {
+        @Override
+        protected Long run(IPlaybackService iService) throws RemoteException {
+            return iService.getSpuDelay();
+        }
+    }
+
+    private static class GetVLCVoutCmd extends Command<IVLCVout> {
+        @Override
+        protected IVLCVout run(IPlaybackService iService) throws RemoteException {
+            return PlaybackService.getVLCVout();
         }
     }
 
@@ -693,11 +920,11 @@ public class PlaybackServiceClient implements ServiceConnection {
     public boolean hasMedia() {
         return new HasMediasCmd().send(mIService, false);
     }
-    public int getLength() {
-        return new GetLengthCmd().send(mIService, 0);
+    public long getLength() {
+        return new GetLengthCmd().send(mIService, 0l);
     }
-    public int getTime() {
-        return new GetTimeCmd().send(mIService, 0);
+    public long getTime() {
+        return new GetTimeCmd().send(mIService, 0l);
     }
     public Bitmap getCover() {
         return new GetCoverCmd().send(mIService);
@@ -741,8 +968,84 @@ public class PlaybackServiceClient implements ServiceConnection {
     public float getRate() {
         return new GetRateCmd().send(mIService, 1.0f);
     }
+    public void setRate(float rate) {
+        new SetRateCmd(rate).send(mIService);
+    }
     public void handleVout() {
         new HandleVout().send(mIService);
+    }
+    public void navigate(int where) {
+        new NavigateCmd(where).send(mIService);
+    }
+    public int getChapterCountForTitle(int title) {
+        return new GetChapterCountForTitleCmd(title).send(mIService);
+    }
+    public int getTitleIdx() {
+        return new GetTitleIdxCmd().send(mIService);
+    }
+    public void setTitleIdx(int title) {
+        new SetTitleIdxCmd(title).send(mIService);
+    }
+    public int getTitleCount() {
+        return new GetTitleCountCmd().send(mIService);
+    }
+    public int getVolume() {
+        return new GetVolumeCmd().send(mIService);
+
+    }
+    public int setVolume(int volume) {
+        return new SetVolumeCmd(volume).send(mIService);
+    }
+    public void setPosition(float pos) {
+        new SetPositionCmd(pos).send(mIService);
+    }
+    public int getAudioTracksCount() {
+        return new GetAudioTracksCountCmd().send(mIService);
+    }
+    public Map<Integer,String> getAudioTrackDescription() {
+        return new GetAudioTrackDescriptionCmd().send(mIService);
+    }
+    public int getAudioTrack() {
+        return new GetAudioTrackCmd().send(mIService);
+    }
+    public int setAudioTrack(int index) {
+        return new SetAudioTrackCmd(index).send(mIService);
+    }
+    public int getVideoTracksCount() {
+        return new GetVideoTracksCountCmd().send(mIService);
+    }
+    public int setVideoTrackEnabled(boolean enabled) {
+        return new SetVideoTrackEnabledCmd(enabled).send(mIService);
+    }
+    public int addSubtitleTrack(String path) {
+        return new AddSubtitleTrackCmd(path).send(mIService);
+    }
+    public Map<Integer,String> getSpuTrackDescription() {
+        return new GetSpuTrackDescriptionCmd().send(mIService);
+    }
+    public int getSpuTrack() {
+        return new GetSpuTrackCmd().send(mIService);
+    }
+    public int setSpuTrack(int index) {
+        return new SetSpuTrackCmd(index).send(mIService);
+    }
+    public int getSpuTracksCount() {
+        return new GetSpuTracksCountCmd().send(mIService);
+    }
+    public int setAudioDelay(long delay) {
+        return new SetAudioDelayCmd(delay).send(mIService);
+    }
+    public long getAudioDelay() {
+        return new GetAudioDelayCmd().send(mIService);
+    }
+    public int setSpuDelay(long delay) {
+        return new SetSpuDelayCmd(delay).send(mIService);
+    }
+    public long getSpuDelay() {
+        return new GetSpuDelayCmd().send(mIService);
+    }
+    public IVLCVout getVLCVout() {
+        return new GetVLCVoutCmd().send(mIService);
     }
 
     /* Static commands: can be run without a PlaybackServiceClient instance */
@@ -839,10 +1142,10 @@ public class PlaybackServiceClient implements ServiceConnection {
     public static void hasMedia(Context context, ResultCallback<Boolean> asyncCb) {
         new HasMediasCmd().sendAsync(context, asyncCb);
     }
-    public static void getLength(Context context, ResultCallback<Integer> asyncCb) {
+    public static void getLength(Context context, ResultCallback<Long> asyncCb) {
         new GetLengthCmd().sendAsync(context, asyncCb);
     }
-    public static void getTime(Context context, ResultCallback<Integer> asyncCb) {
+    public static void getTime(Context context, ResultCallback<Long> asyncCb) {
         new GetTimeCmd().sendAsync(context, asyncCb);
     }
     public static void getCover(Context context, ResultCallback<Bitmap> asyncCb) {
@@ -887,7 +1190,13 @@ public class PlaybackServiceClient implements ServiceConnection {
     public static void getRate(Context context, ResultCallback<Float> asyncCb) {
         new GetRateCmd().sendAsync(context, asyncCb);
     }
+    public static void setRate(Context context, ResultCallback<Void> asyncCb, float rate) {
+        new SetRateCmd(rate).sendAsync(context, asyncCb);
+    }
     public static void handleVout(Context context, ResultCallback<Void> asyncCb) {
         new HandleVout().sendAsync(context, asyncCb);
+    }
+    public static void navigate(Context context, ResultCallback<Void> asyncCb, int where) {
+        new NavigateCmd(where).sendAsync(context, asyncCb);
     }
 }
