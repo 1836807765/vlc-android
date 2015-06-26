@@ -49,25 +49,24 @@ import org.videolan.vlc.MediaWrapper;
 import org.videolan.vlc.PlaybackServiceClient;
 import org.videolan.vlc.R;
 import org.videolan.vlc.gui.AudioPlayerContainerActivity;
+import org.videolan.vlc.gui.PlaybackServiceFragment;
 import org.videolan.vlc.util.AndroidDevices;
 
 import java.util.ArrayList;
 
-public class AudioAlbumFragment extends Fragment implements AdapterView.OnItemClickListener, View.OnClickListener {
+public class AudioAlbumFragment extends PlaybackServiceFragment implements AdapterView.OnItemClickListener, View.OnClickListener {
 
     public final static String TAG = "VLC/AudioAlbumFragment";
 
     private AlbumAdapter mAdapter;
     private ArrayList<MediaWrapper> mMediaList;
     private String mTitle;
-    private PlaybackServiceClient mClient;
 
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mAdapter = new AlbumAdapter(getActivity(), mMediaList);
-        mClient = AudioPlayerContainerActivity.getPlaybackClient(this);
 
         mAdapter.setContextPopupMenuListener(mContextPopupMenuListener);
 
@@ -128,8 +127,8 @@ public class AudioAlbumFragment extends Fragment implements AdapterView.OnItemCl
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        if (mClient.isConnected())
-            mClient.load(mMediaList, position);
+        if (mService != null)
+            mService.load(mMediaList, position);
     }
 
     AlbumAdapter.ContextPopupMenuListener mContextPopupMenuListener
@@ -204,8 +203,8 @@ public class AudioAlbumFragment extends Fragment implements AdapterView.OnItemCl
         final int id = v.getId();
         switch (id){
             case R.id.album_play:
-                if (mClient.isConnected())
-                    mClient.load(mMediaList, 0);
+                if (mService != null)
+                    mService.load(mMediaList, 0);
                 break;
             default:
                 break;

@@ -112,7 +112,6 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
 
     public final static int MSG_LOADING = 0;
     private volatile boolean mDisplaying = false;
-    private PlaybackServiceClient mClient;
 
     /* All subclasses of Fragment must include a public empty constructor. */
     public AudioBrowserFragment() { }
@@ -122,7 +121,6 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
         super.onCreate(savedInstanceState);
 
         mMediaLibrary = MediaLibrary.getInstance();
-        mClient = AudioPlayerContainerActivity.getPlaybackClient(this);
 
         mSongsAdapter = new AudioBrowserListAdapter(getActivity(), AudioBrowserListAdapter.ITEM_WITH_COVER);
         mArtistsAdapter = new AudioBrowserListAdapter(getActivity(), AudioBrowserListAdapter.ITEM_WITH_COVER);
@@ -334,8 +332,8 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
     OnItemClickListener songListener = new OnItemClickListener() {
         @Override
         public void onItemClick(AdapterView<?> av, View v, int p, long id) {
-            if (mClient.isConnected())
-                mClient.load(mSongsAdapter.getMedias(p), 0);
+            if (mService != null)
+                mService.load(mSongsAdapter.getMedias(p), 0);
         }
     };
 
@@ -385,12 +383,12 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
 
     private void loadPlaylist(int position) {
         ArrayList<MediaWrapper> mediaList = mPlaylistAdapter.getItem(position).mMediaList;
-        if (!mClient.isConnected())
+        if (mService == null)
             return;
         if (mediaList.size() == 1 && mediaList.get(0).getType() == MediaWrapper.TYPE_PLAYLIST) {
-            mClient.load(mediaList.get(0));
+            mService.load(mediaList.get(0));
         } else {
-            mClient.load(mPlaylistAdapter.getMedias(position), 0);
+            mService.load(mPlaylistAdapter.getMedias(position), 0);
         }
     }
 
@@ -509,11 +507,11 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
             medias = adapter.getMedias(position);
         }
 
-        if (mClient.isConnected()) {
+        if (mService != null) {
             if (append)
-                mClient.append(medias);
+                mService.append(medias);
             else
-                mClient.load(medias, startPosition);
+                mService.load(medias, startPosition);
             return true;
         } else
             return false;
@@ -538,9 +536,9 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
         if (mSongsAdapter.getCount() > 0) {
             Random rand = new Random();
             int randomSong = rand.nextInt(mSongsAdapter.getCount());
-            if (mClient.isConnected()) {
-                mClient.load(medias, randomSong);
-                mClient.shuffle();
+            if (mService != null) {
+                mService.load(medias, randomSong);
+                mService.shuffle();
             }
         }
     }
@@ -635,8 +633,8 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
 
     @Override
     public void onBrowseEnd() {
-        if (mClient.isConnected())
-            mClient.append(mTracksToAppend);
+        if (mService != null)
+            mService.append(mTracksToAppend);
     }
 
     @Override
@@ -706,12 +704,12 @@ public class AudioBrowserFragment extends MediaBrowserFragment implements SwipeR
         }
 
         private void refresh(AudioBrowserFragment fragment, String path) {
-            if (!fragment.mClient.isConnected())
+            if (fragment.mService == null)
                 return;
 
-            final List<String> mediaLocations = fragment.mClient.getMediaLocations();
+            final List<String> mediaLocations = fragment.mService.getMediaLocations();
             if (mediaLocations != null && mediaLocations.contains(path))
-                fragment.mClient.removeLocation(path);
+                fragment.mService.removeLocation(path);
             fragment.updateLists();
         }
     }

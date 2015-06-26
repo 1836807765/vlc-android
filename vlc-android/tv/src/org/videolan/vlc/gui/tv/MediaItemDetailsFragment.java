@@ -26,16 +26,20 @@ import org.videolan.libvlc.util.AndroidUtil;
 import org.videolan.vlc.MediaDatabase;
 import org.videolan.vlc.MediaLibrary;
 import org.videolan.vlc.MediaWrapper;
+import org.videolan.vlc.PlaybackService;
 import org.videolan.vlc.PlaybackServiceClient;
 import org.videolan.vlc.R;
+import org.videolan.vlc.gui.PlaybackServiceFragment;
 import org.videolan.vlc.gui.audio.AudioUtil;
 import org.videolan.vlc.gui.tv.audioplayer.AudioPlayerActivity;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.MainThread;
 import android.support.v17.leanback.app.DetailsFragment;
 import android.support.v17.leanback.widget.Action;
 import android.support.v17.leanback.widget.ArrayObjectAdapter;
@@ -55,29 +59,57 @@ public class MediaItemDetailsFragment extends DetailsFragment implements Playbac
     private static final int ID_FAVORITE_DELETE = 4;
     private static final int ID_BROWSE = 5;
     private ArrayObjectAdapter mRowsAdapter;
-    private PlaybackServiceClient mClient;
     private MediaItemDetails mMedia;
     private MediaWrapper mMediaWrapper;
     private MediaDatabase mDb;
+    private PlaybackService mService;
+
+    private PlaybackServiceFragment.IRegister getIRegister() {
+        final Activity activity = getActivity();
+        if (activity == null)
+            return null;
+        if (!(activity instanceof PlaybackServiceFragment.IRegister))
+            throw new IllegalArgumentException("Fragment must be inside AudioPlayerContainerActivity or PlaybackServiceActivity");
+        return ((PlaybackServiceFragment.IRegister) activity);
+    }
+
+
+    @MainThread
+    private void registerPlaybackServiceClient(PlaybackServiceClient.Callback callback) {
+        final PlaybackServiceFragment.IRegister activity = getIRegister();
+        if (activity != null)
+            activity.registerPlaybackServiceClient(callback);
+    }
+
+    @MainThread
+    private void unregisterPlaybackServiceClient(PlaybackServiceClient.Callback callback) {
+        final PlaybackServiceFragment.IRegister activity = getIRegister();
+        if (activity != null)
+            activity.unregisterPlaybackServiceClient(callback);
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        mClient = new PlaybackServiceClient(getActivity(), this);
         buildDetails();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        mClient.disconnect();
+        unregisterPlaybackServiceClient(this);
     }
 
     public void onPause(){
         super.onPause();
-        if (mClient.isConnected() && mClient.isPlaying()){
-            mClient.stop();
+        if (mService != null && mService.isPlaying()){
+            mService.stop();
         }
     }
 
@@ -107,7 +139,7 @@ public class MediaItemDetailsFragment extends DetailsFragment implements Playbac
             public void onActionClicked(Action action) {
                 switch ((int)action.getId()){
                     case ID_LISTEN:
-                        mClient.connect();
+                        registerPlaybackServiceClient(MediaItemDetailsFragment.this);
                         break;
                     case ID_PLAY:
                         ArrayList<MediaWrapper> tracks = new ArrayList<MediaWrapper>();
@@ -167,27 +199,13 @@ public class MediaItemDetailsFragment extends DetailsFragment implements Playbac
     }
 
     @Override
-    public void onConnected() {
-        mClient.load(mMediaWrapper);
+    public void onConnected(PlaybackService service) {
+        mService = service;
+        mService.load(mMediaWrapper);
     }
 
     @Override
     public void onDisconnected() {
-    }
-
-    @Override
-    public void update() {
-    }
-
-    @Override
-    public void updateProgress() {
-    }
-
-    @Override
-    public void onMediaPlayedAdded(MediaWrapper media, int index) {
-    }
-
-    @Override
-    public void onMediaPlayedRemoved(int index) {
+        mService = null;
     }
 }

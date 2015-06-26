@@ -56,6 +56,7 @@ import org.videolan.vlc.PlaybackServiceClient;
 import org.videolan.vlc.R;
 import org.videolan.vlc.VLCApplication;
 import org.videolan.vlc.gui.AudioPlayerContainerActivity;
+import org.videolan.vlc.gui.PlaybackServiceFragment;
 import org.videolan.vlc.gui.SecondaryActivity;
 import org.videolan.vlc.util.AndroidDevices;
 import org.videolan.vlc.util.Util;
@@ -68,7 +69,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class AudioAlbumsSongsFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
+public class AudioAlbumsSongsFragment extends PlaybackServiceFragment implements SwipeRefreshLayout.OnRefreshListener {
 
     public final static String TAG = "VLC/AudioAlbumsSongsFragment";
 
@@ -101,7 +102,6 @@ public class AudioAlbumsSongsFragment extends Fragment implements SwipeRefreshLa
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mClient = AudioPlayerContainerActivity.getPlaybackClient(this);
         mAlbumsAdapter = new AudioBrowserListAdapter(getActivity(), AudioBrowserListAdapter.ITEM_WITH_COVER);
         mSongsAdapter = new AudioBrowserListAdapter(getActivity(), AudioBrowserListAdapter.ITEM_WITH_COVER);
 
@@ -255,11 +255,11 @@ public class AudioAlbumsSongsFragment extends Fragment implements SwipeRefreshLa
             }
         }
 
-        if (mClient.isConnected()) {
+        if (mService != null) {
             if (append)
-                mClient.append(medias);
+                mService.append(medias);
             else
-                mClient.load(medias, startPosition);
+                mService.load(medias, startPosition);
         }
 
         return super.onContextItemSelected(item);
@@ -311,9 +311,9 @@ public class AudioAlbumsSongsFragment extends Fragment implements SwipeRefreshLa
     OnItemClickListener songsListener = new OnItemClickListener() {
         @Override
         public void onItemClick(AdapterView<?> av, View v, int p, long id) {
-            if (mClient.isConnected()) {
+            if (mService != null) {
                 final List<MediaWrapper> media = mSongsAdapter.getItem(p).mMediaList;
-                mClient.load(media, 0);
+                mService.load(media, 0);
             }
         }
     };
@@ -394,8 +394,8 @@ public class AudioAlbumsSongsFragment extends Fragment implements SwipeRefreshLa
                     fragment.mMediaLibrary.getMediaItems().remove(media);
                     fragment.mSongsAdapter.removeMedia(media);
                     fragment.mAlbumsAdapter.removeMedia(media);
-                    if (fragment.mClient.isConnected())
-                        fragment.mClient.removeLocation(media.getLocation());
+                    if (fragment.mService != null)
+                        fragment.mService.removeLocation(media.getLocation());
                     fragment.mMediaLibrary.getMediaItems().remove(media);
                     new Thread(new Runnable() {
                         public void run() {

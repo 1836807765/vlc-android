@@ -50,6 +50,7 @@ import android.widget.ListView;
 
 import org.videolan.libvlc.util.HWDecoderUtil;
 import org.videolan.vlc.MediaDatabase;
+import org.videolan.vlc.PlaybackService;
 import org.videolan.vlc.PlaybackServiceClient;
 import org.videolan.vlc.R;
 import org.videolan.vlc.gui.audio.AudioUtil;
@@ -61,7 +62,7 @@ import org.videolan.vlc.util.VLCOptions;
 import org.videolan.vlc.BuildConfig;
 
 @SuppressWarnings("deprecation")
-public class PreferencesActivity extends PreferenceActivity implements OnSharedPreferenceChangeListener {
+public class PreferencesActivity extends PreferenceActivity implements OnSharedPreferenceChangeListener, PlaybackServiceClient.Callback {
 
     public final static String TAG = "VLC/PreferencesActivity";
 
@@ -75,6 +76,9 @@ public class PreferencesActivity extends PreferenceActivity implements OnSharedP
     public final static String VIDEO_RESTORE = "video_restore";
     public final static int RESULT_RESCAN = RESULT_FIRST_USER + 1;
     public final static int RESULT_RESTART = RESULT_FIRST_USER + 2;
+
+    private PlaybackServiceClient mClient = new PlaybackServiceClient(this, this);
+    private PlaybackService mService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,7 +128,8 @@ public class PreferencesActivity extends PreferenceActivity implements OnSharedP
                 new OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        PlaybackServiceClient.detectHeadset(PreferencesActivity.this, null, checkboxHS.isChecked());
+                        if (mService != null)
+                            mService.detectHeadset(checkboxHS.isChecked());
                         return true;
                     }
                 });
@@ -287,8 +292,15 @@ public class PreferencesActivity extends PreferenceActivity implements OnSharedP
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onStart() {
+        super.onStart();
+        mClient.connect();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mClient.disconnect();
     }
 
     private void applyTheme() {
@@ -355,7 +367,7 @@ public class PreferencesActivity extends PreferenceActivity implements OnSharedP
                 || key.equalsIgnoreCase("network_caching")
                 || key.equalsIgnoreCase("dev_hardware_decoder")) {
             VLCInstance.restart(this, sharedPreferences);
-            PlaybackServiceClient.restartService(PreferencesActivity.this);
+            PlaybackServiceClient.restartService(PreferencesActivity.this); // TODO restart libvlc and MediaPlayer, not the playlist
         }
     }
 
@@ -377,5 +389,15 @@ public class PreferencesActivity extends PreferenceActivity implements OnSharedP
             }
         } catch(Exception e){}
         return false;
+    }
+
+    @Override
+    public void onConnected(PlaybackService service) {
+        mService = service;
+    }
+
+    @Override
+    public void onDisconnected() {
+        mService = null;
     }
 }

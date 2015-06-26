@@ -419,7 +419,8 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
                 Util.openMedia(getActivity(), (MediaWrapper) mAdapter.getItem(position));
                 return true;
             case R.id.directory_view_append: {
-                PlaybackServiceClient.append(getActivity(), null, mw);
+                if (mService != null)
+                    mService.append(mw);
                 return true;
             }
             case R.id.directory_view_delete:
@@ -440,7 +441,8 @@ public abstract class BaseBrowserFragment extends MediaBrowserFragment implement
                 startActivity(i);
                 return true;
             case R.id.directory_view_play_audio: {
-                PlaybackServiceClient.load(getActivity(), null, mw);
+                if (mService != null)
+                    mService.load(mw);
                 return true;
             }
             case  R.id.directory_view_play_video:

@@ -39,14 +39,15 @@ import android.media.MediaMetadataRetriever;
 import android.media.RemoteControlClient;
 import android.media.RemoteControlClient.MetadataEditor;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.PowerManager;
-import android.os.RemoteException;
 import android.preference.PreferenceManager;
+import android.support.annotation.MainThread;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -65,8 +66,6 @@ import org.videolan.vlc.gui.MainActivity;
 import org.videolan.vlc.gui.AudioPlayerContainerActivity;
 import org.videolan.vlc.gui.audio.AudioUtil;
 import org.videolan.vlc.gui.video.VideoPlayerActivity;
-import org.videolan.vlc.interfaces.IPlaybackService;
-import org.videolan.vlc.interfaces.IPlaybackServiceCallback;
 import org.videolan.vlc.util.Util;
 import org.videolan.vlc.util.VLCInstance;
 import org.videolan.vlc.util.VLCOptions;
@@ -105,9 +104,27 @@ public class PlaybackService extends Service {
     public static final String ACTION_WIDGET_UPDATE_COVER = "org.videolan.vlc.widget.UPDATE_COVER";
     public static final String ACTION_WIDGET_UPDATE_POSITION = "org.videolan.vlc.widget.UPDATE_POSITION";
 
+    public interface Callback {
+        void update();
+        void updateProgress();
+        void onMediaPlayedAdded(MediaWrapper media, int index);
+        void onMediaPlayedRemoved(int index);
+    }
+
+    private class LocalBinder extends Binder {
+        PlaybackService getService() {
+            return PlaybackService.this;
+        }
+    }
+    public static PlaybackService getService(IBinder iBinder) {
+        LocalBinder binder = (LocalBinder) iBinder;
+        return binder.getService();
+    }
+
+    private final IBinder mBinder = new LocalBinder();
     private MediaWrapperListPlayer mMediaListPlayer;
     private boolean mForceAudio = false;
-    private HashMap<IPlaybackServiceCallback, Integer> mCallback;
+    private HashMap<Callback, Integer> mCallback;
     private EventHandler mEventHandler;
     private OnAudioFocusChangeListener audioFocusListener;
     private boolean mDetectHeadset = true;
@@ -170,7 +187,7 @@ public class PlaybackService extends Service {
 
         mMediaListPlayer = MediaWrapperListPlayer.getInstance();
 
-        mCallback = new HashMap<IPlaybackServiceCallback, Integer>();
+        mCallback = new HashMap<Callback, Integer>();
         mCurrentIndex = -1;
         mPrevIndex = -1;
         mNextIndex = -1;
@@ -312,7 +329,7 @@ public class PlaybackService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        return mInterface;
+        return mBinder;
     }
 
     @TargetApi(Build.VERSION_CODES.FROYO)
@@ -619,7 +636,8 @@ public class PlaybackService extends Service {
         }
     };
 
-    private void handleVout() {
+    @MainThread
+    public void handleVout() {
         if (mForceAudio || MediaPlayer().getVideoTracksCount() <= 0 || !hasCurrentMedia())
             return;
         final MediaWrapper mw = getCurrentMedia();
@@ -642,35 +660,23 @@ public class PlaybackService extends Service {
     }
 
     private void executeUpdate(Boolean updateWidget) {
-        for (IPlaybackServiceCallback callback : mCallback.keySet()) {
-            try {
-                callback.update();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+        for (Callback callback : mCallback.keySet()) {
+            callback.update();
         }
         if (updateWidget)
             updateWidget();
     }
 
     private void executeUpdateProgress() {
-        for (IPlaybackServiceCallback callback : mCallback.keySet()) {
-            try {
-                callback.updateProgress();
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+        for (Callback callback : mCallback.keySet()) {
+            callback.updateProgress();
         }
     }
 
     private void executeOnMediaPlayedAdded() {
         final MediaWrapper media = getCurrentMedia();
-        for (IPlaybackServiceCallback callback : mCallback.keySet()) {
-            try {
-                callback.onMediaPlayedAdded(media, 0);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
+        for (Callback callback : mCallback.keySet()) {
+            callback.onMediaPlayedAdded(media, 0);
         }
     }
 
@@ -840,7 +846,8 @@ public class PlaybackService extends Service {
             stopSelf();
     }
 
-    private void pause() {
+    @MainThread
+    public void pause() {
         setUpRemoteControlClient();
         mHandler.removeMessages(SHOW_PROGRESS);
         // hideNotification(); <-- see event handler
@@ -848,7 +855,8 @@ public class PlaybackService extends Service {
         broadcastMetadata();
     }
 
-    private void play() {
+    @MainThread
+    public void play() {
         if(hasCurrentMedia()) {
             setUpRemoteControlClient();
             MediaPlayer().play();
@@ -859,7 +867,8 @@ public class PlaybackService extends Service {
         }
     }
 
-    private void stop() {
+    @MainThread
+    public void stop() {
         savePosition();
         MediaPlayer().stop();
         mEventHandler.removeHandler(mVlcEventHandler);
@@ -938,7 +947,8 @@ public class PlaybackService extends Service {
         }
     }
 
-    private void next() {
+    @MainThread
+    public void next() {
         mPrevious.push(mCurrentIndex);
         mCurrentIndex = mNextIndex;
 
@@ -1004,7 +1014,8 @@ public class PlaybackService extends Service {
         }
     }
 
-    private void previous() {
+    @MainThread
+    public void previous() {
         mCurrentIndex = mPrevIndex;
         if (mPrevious.size() > 0)
             mPrevious.pop();
@@ -1029,7 +1040,8 @@ public class PlaybackService extends Service {
         determinePrevAndNextIndices();
     }
 
-    private void shuffle() {
+    @MainThread
+    public void shuffle() {
         if (mShuffling)
             mPrevious.clear();
         mShuffling = !mShuffling;
@@ -1037,12 +1049,12 @@ public class PlaybackService extends Service {
         determinePrevAndNextIndices();
     }
 
-    private void setRepeatType(int t) {
-        mRepeating = RepeatType.values()[t];
+    @MainThread
+    public void setRepeatType(RepeatType t) {
+        mRepeating = t;
         saveCurrentMedia();
         determinePrevAndNextIndices();
     }
-
 
     private void updateWidget() {
         updateWidgetState();
@@ -1128,18 +1140,13 @@ public class PlaybackService extends Service {
         int position = prefs.getInt("position_in_list", Math.max(0, mediaPathList.indexOf(currentMedia)));
         long time = prefs.getLong("position_in_song", -1);
         // load playlist
-        try {
-            mInterface.loadLocations(mediaPathList, position);
-            if (time > 0)
-                mInterface.setTime(time);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        } finally {
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putInt("position_in_list", 0);
-            editor.putLong("position_in_song", 0);
-            Util.commitPreferences(editor);
-        }
+        loadLocations(mediaPathList, position);
+        if (time > 0)
+            setTime(time);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putInt("position_in_list", 0);
+        editor.putLong("position_in_song", 0);
+        Util.commitPreferences(editor);
     }
 
     private synchronized void saveCurrentMedia() {
@@ -1198,414 +1205,396 @@ public class PlaybackService extends Service {
         mHandler.sendMessage(msg);
     }
 
-    private final IPlaybackService.Stub mInterface = new IPlaybackService.Stub() {
+    @MainThread
+    public boolean isPlaying() {
+        return MediaPlayer().isPlaying();
+    }
 
-        @Override
-        public void pause() throws RemoteException {
-            PlaybackService.this.pause();
-        }
+    @MainThread
+    public boolean isShuffling() {
+        return mShuffling;
+    }
 
-        @Override
-        public void play() throws RemoteException {
-            PlaybackService.this.play();
-        }
+    @MainThread
+    public RepeatType getRepeatType() {
+        return mRepeating;
+    }
 
-        @Override
-        public void stop() throws RemoteException {
-            PlaybackService.this.stop();
-        }
+    @MainThread
+    public boolean hasMedia()  {
+        return hasCurrentMedia();
+    }
 
-        @Override
-        public boolean isPlaying() throws RemoteException {
-            return MediaPlayer().isPlaying();
-        }
-
-        @Override
-        public boolean isShuffling() {
-            return mShuffling;
-        }
-
-        @Override
-        public int getRepeatType() {
-            return mRepeating.ordinal();
-        }
-
-        @Override
-        public boolean hasMedia() throws RemoteException {
-            return hasCurrentMedia();
-        }
-
-        @Override
-        public String getAlbum() throws RemoteException {
-            if (hasCurrentMedia())
-                return Util.getMediaAlbum(PlaybackService.this, getCurrentMedia());
-            else
-                return null;
-        }
-
-        @Override
-        public String getArtist() throws RemoteException {
-            if (hasCurrentMedia()) {
-                final MediaWrapper media = getCurrentMedia();
-                return media.isArtistUnknown() && media.getNowPlaying() != null ?
-                        media.getNowPlaying()
-                        : Util.getMediaArtist(PlaybackService.this, media);
-            } else
-                return null;
-        }
-
-        @Override
-        public String getArtistPrev() throws RemoteException {
-            if (mPrevIndex != -1)
-                return Util.getMediaArtist(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mPrevIndex));
-            else
-                return null;
-        }
-
-        @Override
-        public String getArtistNext() throws RemoteException {
-            if (mNextIndex != -1)
-                return Util.getMediaArtist(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mNextIndex));
-            else
-                return null;
-        }
-
-        @Override
-        public String getTitle() throws RemoteException {
-            if (hasCurrentMedia())
-                return getCurrentMedia().getTitle();
-            else
-                return null;
-        }
-
-        @Override
-        public String getTitlePrev() throws RemoteException {
-            if (mPrevIndex != -1)
-                return mMediaListPlayer.getMediaList().getMedia(mPrevIndex).getTitle();
-            else
-                return null;
-        }
-
-        @Override
-        public String getTitleNext() throws RemoteException {
-            if (mNextIndex != -1)
-                return mMediaListPlayer.getMediaList().getMedia(mNextIndex).getTitle();
-            else
-                return null;
-        }
-
-        @Override
-        public Bitmap getCover() {
-            if (hasCurrentMedia()) {
-                return AudioUtil.getCover(PlaybackService.this, getCurrentMedia(), 512);
-            }
+    @MainThread
+    public String getAlbum() {
+        if (hasCurrentMedia())
+            return Util.getMediaAlbum(PlaybackService.this, getCurrentMedia());
+        else
             return null;
+    }
+
+    @MainThread
+    public String getArtist() {
+        if (hasCurrentMedia()) {
+            final MediaWrapper media = getCurrentMedia();
+            return media.isArtistUnknown() && media.getNowPlaying() != null ?
+                    media.getNowPlaying()
+                    : Util.getMediaArtist(PlaybackService.this, media);
+        } else
+            return null;
+    }
+
+    @MainThread
+    public String getArtistPrev() {
+        if (mPrevIndex != -1)
+            return Util.getMediaArtist(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mPrevIndex));
+        else
+            return null;
+    }
+
+    @MainThread
+    public String getArtistNext() {
+        if (mNextIndex != -1)
+            return Util.getMediaArtist(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mNextIndex));
+        else
+            return null;
+    }
+
+    @MainThread
+    public String getTitle() {
+        if (hasCurrentMedia())
+            return getCurrentMedia().getTitle();
+        else
+            return null;
+    }
+
+    @MainThread
+    public String getTitlePrev() {
+        if (mPrevIndex != -1)
+            return mMediaListPlayer.getMediaList().getMedia(mPrevIndex).getTitle();
+        else
+            return null;
+    }
+
+    @MainThread
+    public String getTitleNext() {
+        if (mNextIndex != -1)
+            return mMediaListPlayer.getMediaList().getMedia(mNextIndex).getTitle();
+        else
+            return null;
+    }
+
+    @MainThread
+    public Bitmap getCover() {
+        if (hasCurrentMedia()) {
+            return AudioUtil.getCover(PlaybackService.this, getCurrentMedia(), 512);
         }
+        return null;
+    }
 
-        @Override
-        public Bitmap getCoverPrev() throws RemoteException {
-            if (mPrevIndex != -1)
-                return AudioUtil.getCover(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mPrevIndex), 64);
-            else
-                return null;
-        }
+    @MainThread
+    public Bitmap getCoverPrev() {
+        if (mPrevIndex != -1)
+            return AudioUtil.getCover(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mPrevIndex), 64);
+        else
+            return null;
+    }
 
-        @Override
-        public Bitmap getCoverNext() throws RemoteException {
-            if (mNextIndex != -1)
-                return AudioUtil.getCover(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mNextIndex), 64);
-            else
-                return null;
-        }
+    @MainThread
+    public Bitmap getCoverNext() {
+        if (mNextIndex != -1)
+            return AudioUtil.getCover(PlaybackService.this, mMediaListPlayer.getMediaList().getMedia(mNextIndex), 64);
+        else
+            return null;
+    }
 
-        @Override
-        public synchronized void addAudioCallback(IPlaybackServiceCallback cb)
-                throws RemoteException {
-            Integer count = mCallback.get(cb);
-            if (count == null)
-                count = 0;
-            mCallback.put(cb, count + 1);
-            if (hasCurrentMedia())
-                mHandler.sendEmptyMessage(SHOW_PROGRESS);
-        }
+    @MainThread
+    public synchronized void addCallback(Callback cb) {
+        Integer count = mCallback.get(cb);
+        if (count == null)
+            count = 0;
+        mCallback.put(cb, count + 1);
+        if (hasCurrentMedia())
+            mHandler.sendEmptyMessage(SHOW_PROGRESS);
+    }
 
-        @Override
-        public synchronized void removeAudioCallback(IPlaybackServiceCallback cb)
-                throws RemoteException {
-            Integer count = mCallback.get(cb);
-            if (count == null)
-                count = 0;
-            if (count > 1)
-                mCallback.put(cb, count - 1);
-            else
-                mCallback.remove(cb);
-        }
+    @MainThread
+    public synchronized void removeCallback(Callback cb) {
+        Integer count = mCallback.get(cb);
+        if (count == null)
+            count = 0;
+        if (count > 1)
+            mCallback.put(cb, count - 1);
+        else
+            mCallback.remove(cb);
+    }
 
-        @Override
-        public int getTime() throws RemoteException {
-            return (int) MediaPlayer().getTime();
-        }
+    @MainThread
+    public int getTime() {
+        return (int) MediaPlayer().getTime();
+    }
 
-        @Override
-        public int getLength() throws RemoteException {
-            return (int) MediaPlayer().getLength();
-        }
+    @MainThread
+    public int getLength() {
+        return (int) MediaPlayer().getLength();
+    }
 
-        /**
-         * Loads a selection of files (a non-user-supplied collection of media)
-         * into the primary or "currently playing" playlist.
-         *
-         * @param mediaPathList A list of locations to load
-         * @param position The position to start playing at
-         * @throws RemoteException
-         */
-        @Override
-        public void loadLocations(List<String> mediaPathList, int position)
-                throws RemoteException {
-            ArrayList<MediaWrapper> mediaList = new ArrayList<MediaWrapper>();
-            MediaDatabase db = MediaDatabase.getInstance();
+    /**
+     * Loads a selection of files (a non-user-supplied collection of media)
+     * into the primary or "currently playing" playlist.
+     *
+     * @param mediaPathList A list of locations to load
+     * @param position The position to start playing at
+     */
+    @MainThread
+    public void loadLocations(List<String> mediaPathList, int position) {
+        ArrayList<MediaWrapper> mediaList = new ArrayList<MediaWrapper>();
+        MediaDatabase db = MediaDatabase.getInstance();
 
-            for (int i = 0; i < mediaPathList.size(); i++) {
-                String location = mediaPathList.get(i);
-                MediaWrapper mediaWrapper = db.getMedia(Uri.parse(location));
-                if (mediaWrapper == null) {
-                    if (!validateLocation(location)) {
-                        Log.w(TAG, "Invalid location " + location);
-                        showToast(getResources().getString(R.string.invalid_location, location), Toast.LENGTH_SHORT);
-                        continue;
-                    }
-                    Log.v(TAG, "Creating on-the-fly Media object for " + location);
-                    final Media media = new Media(LibVLC(), Uri.parse(location));
-                    media.parse(); // FIXME: parse should be done asynchronously
-                    media.release();
-                    mediaWrapper = new MediaWrapper(media);
+        for (int i = 0; i < mediaPathList.size(); i++) {
+            String location = mediaPathList.get(i);
+            MediaWrapper mediaWrapper = db.getMedia(Uri.parse(location));
+            if (mediaWrapper == null) {
+                if (!validateLocation(location)) {
+                    Log.w(TAG, "Invalid location " + location);
+                    showToast(getResources().getString(R.string.invalid_location, location), Toast.LENGTH_SHORT);
+                    continue;
                 }
-                mediaList.add(mediaWrapper);
+                Log.v(TAG, "Creating on-the-fly Media object for " + location);
+                final Media media = new Media(LibVLC(), Uri.parse(location));
+                media.parse(); // FIXME: parse should be done asynchronously
+                media.release();
+                mediaWrapper = new MediaWrapper(media);
             }
-            load(mediaList, position, false);
+            mediaList.add(mediaWrapper);
+        }
+        load(mediaList, position, false);
+    }
+
+    @MainThread
+    public void loadLocation(String mediaPath) {
+        ArrayList <String> arrayList = new ArrayList<String>();
+        arrayList.add(mediaPath);
+        loadLocations(arrayList, 0);
+    }
+
+    @MainThread
+    public void load(List<MediaWrapper> mediaList, int position, boolean forceAudio) {
+        Log.v(TAG, "Loading position " + ((Integer) position).toString() + " in " + mediaList.toString());
+        mEventHandler.addHandler(mVlcEventHandler);
+
+        mMediaListPlayer.getMediaList().removeEventListener(mListEventListener);
+        mMediaListPlayer.getMediaList().clear();
+        MediaWrapperList currentMediaList = mMediaListPlayer.getMediaList();
+
+        mPrevious.clear();
+        mForceAudio = forceAudio;
+
+        for (int i = 0; i < mediaList.size(); i++) {
+            currentMediaList.add(mediaList.get(i));
         }
 
-        @Override
-        public void load(List<MediaWrapper> mediaList, int position, boolean forceAudio)
-                throws RemoteException {
-
-            Log.v(TAG, "Loading position " + ((Integer) position).toString() + " in " + mediaList.toString());
-            mEventHandler.addHandler(mVlcEventHandler);
-
-            mMediaListPlayer.getMediaList().removeEventListener(mListEventListener);
-            mMediaListPlayer.getMediaList().clear();
-            MediaWrapperList currentMediaList = mMediaListPlayer.getMediaList();
-
-            mPrevious.clear();
-            mForceAudio = forceAudio;
-
-            for (int i = 0; i < mediaList.size(); i++) {
-                currentMediaList.add(mediaList.get(i));
-            }
-
-            if (mMediaListPlayer.getMediaList().size() == 0) {
-                Log.w(TAG, "Warning: empty media list, nothing to play !");
-                return;
-            }
-            if (mMediaListPlayer.getMediaList().size() > position && position >= 0) {
-                mCurrentIndex = position;
-            } else {
-                Log.w(TAG, "Warning: positon " + position + " out of bounds");
-                mCurrentIndex = 0;
-            }
-
-            // Add handler after loading the list
-            mMediaListPlayer.getMediaList().addEventListener(mListEventListener);
-
-            mMediaListPlayer.playIndex(PlaybackService.this, mCurrentIndex, VLCOptions.MEDIA_NO_VIDEO);
-            executeOnMediaPlayedAdded();
-            mHandler.sendEmptyMessage(SHOW_PROGRESS);
-            setUpRemoteControlClient();
-            showNotification();
-            updateWidget();
-            broadcastMetadata();
-            updateRemoteControlClientMetadata();
-            PlaybackService.this.saveMediaList();
-            PlaybackService.this.saveCurrentMedia();
-            determinePrevAndNextIndices();
+        if (mMediaListPlayer.getMediaList().size() == 0) {
+            Log.w(TAG, "Warning: empty media list, nothing to play !");
+            return;
+        }
+        if (mMediaListPlayer.getMediaList().size() > position && position >= 0) {
+            mCurrentIndex = position;
+        } else {
+            Log.w(TAG, "Warning: positon " + position + " out of bounds");
+            mCurrentIndex = 0;
         }
 
-        /**
-         * Use this function to play a media inside whatever MediaList LibVLC is following.
-         *
-         * Unlike load(), it does not import anything into the primary list.
-         */
-        @Override
-        public void playIndex(int index) {
-            if (mMediaListPlayer.getMediaList().size() == 0) {
-                Log.w(TAG, "Warning: empty media list, nothing to play !");
-                return;
-            }
-            if (index >= 0 && index < mMediaListPlayer.getMediaList().size()) {
-                mCurrentIndex = index;
-            } else {
-                Log.w(TAG, "Warning: index " + index + " out of bounds");
-                mCurrentIndex = 0;
-            }
+        // Add handler after loading the list
+        mMediaListPlayer.getMediaList().addEventListener(mListEventListener);
 
-            mEventHandler.addHandler(mVlcEventHandler);
-            mMediaListPlayer.playIndex(PlaybackService.this, mCurrentIndex, VLCOptions.MEDIA_NO_VIDEO);
-            executeOnMediaPlayedAdded();
-            mHandler.sendEmptyMessage(SHOW_PROGRESS);
-            setUpRemoteControlClient();
-            showNotification();
-            updateWidget();
-            broadcastMetadata();
-            updateRemoteControlClientMetadata();
-            determinePrevAndNextIndices();
+        mMediaListPlayer.playIndex(PlaybackService.this, mCurrentIndex, VLCOptions.MEDIA_NO_VIDEO);
+        executeOnMediaPlayedAdded();
+        mHandler.sendEmptyMessage(SHOW_PROGRESS);
+        setUpRemoteControlClient();
+        showNotification();
+        updateWidget();
+        broadcastMetadata();
+        updateRemoteControlClientMetadata();
+        PlaybackService.this.saveMediaList();
+        PlaybackService.this.saveCurrentMedia();
+        determinePrevAndNextIndices();
+    }
+
+    @MainThread
+    public void load(List<MediaWrapper> mediaList, int position) {
+        load(mediaList, position, false);
+    }
+
+    @MainThread
+    public void load(MediaWrapper media, boolean forceAudio) {
+        ArrayList<MediaWrapper> arrayList = new ArrayList<MediaWrapper>();
+        arrayList.add(media);
+        load(arrayList, 0, forceAudio);
+    }
+
+    @MainThread
+    public void load(MediaWrapper media) {
+        load(media, false);
+    }
+
+    /**
+     * Use this function to play a media inside whatever MediaList LibVLC is following.
+     *
+     * Unlike load(), it does not import anything into the primary list.
+     */
+    @MainThread
+    public void playIndex(int index) {
+        if (mMediaListPlayer.getMediaList().size() == 0) {
+            Log.w(TAG, "Warning: empty media list, nothing to play !");
+            return;
         }
-
-        /**
-         * Use this function to show an URI in the audio interface WITHOUT
-         * interrupting the stream.
-         *
-         * Mainly used by VideoPlayerActivity in response to loss of video track.
-         */
-        @Override
-        public void showWithoutParse(int index) throws RemoteException {
-            String URI = mMediaListPlayer.getMediaList().getMRL(index);
-            Log.v(TAG, "Showing index " + index + " with playing URI " + URI);
-            // Show an URI without interrupting/losing the current stream
-
-            if(URI == null || !MediaPlayer().isPlaying())
-                return;
-            mEventHandler.addHandler(mVlcEventHandler);
+        if (index >= 0 && index < mMediaListPlayer.getMediaList().size()) {
             mCurrentIndex = index;
-
-            // Notify everyone
-            mHandler.sendEmptyMessage(SHOW_PROGRESS);
-            showNotification();
-            determinePrevAndNextIndices();
-            executeUpdate();
-            executeUpdateProgress();
+        } else {
+            Log.w(TAG, "Warning: index " + index + " out of bounds");
+            mCurrentIndex = 0;
         }
 
-        /**
-         * Append to the current existing playlist
-         */
-        @Override
-        public void append(List<MediaWrapper> mediaList) throws RemoteException {
-            if (!hasCurrentMedia())
-            {
-                load(mediaList, 0, false);
-                return;
-            }
+        mEventHandler.addHandler(mVlcEventHandler);
+        mMediaListPlayer.playIndex(PlaybackService.this, mCurrentIndex, VLCOptions.MEDIA_NO_VIDEO);
+        executeOnMediaPlayedAdded();
+        mHandler.sendEmptyMessage(SHOW_PROGRESS);
+        setUpRemoteControlClient();
+        showNotification();
+        updateWidget();
+        broadcastMetadata();
+        updateRemoteControlClientMetadata();
+        determinePrevAndNextIndices();
+    }
 
-            for (int i = 0; i < mediaList.size(); i++) {
-                MediaWrapper mediaWrapper = mediaList.get(i);
-                mMediaListPlayer.getMediaList().add(mediaWrapper);
-            }
-            PlaybackService.this.saveMediaList();
-            determinePrevAndNextIndices();
-            executeUpdate();
+    /**
+     * Use this function to show an URI in the audio interface WITHOUT
+     * interrupting the stream.
+     *
+     * Mainly used by VideoPlayerActivity in response to loss of video track.
+     */
+    @MainThread
+    public void showWithoutParse(int index) {
+        String URI = mMediaListPlayer.getMediaList().getMRL(index);
+        Log.v(TAG, "Showing index " + index + " with playing URI " + URI);
+        // Show an URI without interrupting/losing the current stream
+
+        if(URI == null || !MediaPlayer().isPlaying())
+            return;
+        mEventHandler.addHandler(mVlcEventHandler);
+        mCurrentIndex = index;
+
+        // Notify everyone
+        mHandler.sendEmptyMessage(SHOW_PROGRESS);
+        showNotification();
+        determinePrevAndNextIndices();
+        executeUpdate();
+        executeUpdateProgress();
+    }
+
+    /**
+     * Append to the current existing playlist
+     */
+    @MainThread
+    public void append(List<MediaWrapper> mediaList) {
+        if (!hasCurrentMedia())
+        {
+            load(mediaList, 0, false);
+            return;
         }
 
-        /**
-         * Move an item inside the playlist.
-         */
-        @Override
-        public void moveItem(int positionStart, int positionEnd) throws RemoteException {
-            mMediaListPlayer.getMediaList().move(positionStart, positionEnd);
-            PlaybackService.this.saveMediaList();
+        for (int i = 0; i < mediaList.size(); i++) {
+            MediaWrapper mediaWrapper = mediaList.get(i);
+            mMediaListPlayer.getMediaList().add(mediaWrapper);
         }
+        PlaybackService.this.saveMediaList();
+        determinePrevAndNextIndices();
+        executeUpdate();
+    }
 
-        @Override
-        public void remove(int position) {
-            mMediaListPlayer.getMediaList().remove(position);
-            PlaybackService.this.saveMediaList();
-            determinePrevAndNextIndices();
-            executeUpdate();
-        }
+    @MainThread
+    public void append(MediaWrapper media) {
+        ArrayList<MediaWrapper> arrayList = new ArrayList<MediaWrapper>();
+        arrayList.add(media);
+        append(arrayList);
+    }
 
-        @Override
-        public void removeLocation(String location) {
-            mMediaListPlayer.getMediaList().remove(location);
-            PlaybackService.this.saveMediaList();
-            determinePrevAndNextIndices();
-            executeUpdate();
-        }
+    /**
+     * Move an item inside the playlist.
+     */
+    @MainThread
+    public void moveItem(int positionStart, int positionEnd) {
+        mMediaListPlayer.getMediaList().move(positionStart, positionEnd);
+        PlaybackService.this.saveMediaList();
+    }
 
-        @Override
-        public List<MediaWrapper> getMedias() {
-            final ArrayList<MediaWrapper> ml = new ArrayList<MediaWrapper>();
-            for (int i = 0; i < mMediaListPlayer.getMediaList().size(); i++) {
-                ml.add(mMediaListPlayer.getMediaList().getMedia(i));
-            }
-            return ml;
-        }
+    @MainThread
+    public void remove(int position) {
+        mMediaListPlayer.getMediaList().remove(position);
+        PlaybackService.this.saveMediaList();
+        determinePrevAndNextIndices();
+        executeUpdate();
+    }
 
-        @Override
-        public List<String> getMediaLocations() {
-            ArrayList<String> medias = new ArrayList<String>();
-            for (int i = 0; i < mMediaListPlayer.getMediaList().size(); i++) {
-                medias.add(mMediaListPlayer.getMediaList().getMRL(i));
-            }
-            return medias;
-        }
+    @MainThread
+    public void removeLocation(String location) {
+        mMediaListPlayer.getMediaList().remove(location);
+        PlaybackService.this.saveMediaList();
+        determinePrevAndNextIndices();
+        executeUpdate();
+    }
 
-        @Override
-        public String getCurrentMediaLocation() throws RemoteException {
-            return mMediaListPlayer.getMediaList().getMRL(mCurrentIndex);
+    @MainThread
+    public List<MediaWrapper> getMedias() {
+        final ArrayList<MediaWrapper> ml = new ArrayList<MediaWrapper>();
+        for (int i = 0; i < mMediaListPlayer.getMediaList().size(); i++) {
+            ml.add(mMediaListPlayer.getMediaList().getMedia(i));
         }
+        return ml;
+    }
 
-        @Override
-        public MediaWrapper getCurrentMediaWrapper() throws RemoteException {
-            return PlaybackService.this.getCurrentMedia();
+    @MainThread
+    public List<String> getMediaLocations() {
+        ArrayList<String> medias = new ArrayList<String>();
+        for (int i = 0; i < mMediaListPlayer.getMediaList().size(); i++) {
+            medias.add(mMediaListPlayer.getMediaList().getMRL(i));
         }
+        return medias;
+    }
 
-        @Override
-        public void next() throws RemoteException {
-            PlaybackService.this.next();
-        }
+    @MainThread
+    public String getCurrentMediaLocation() {
+        return mMediaListPlayer.getMediaList().getMRL(mCurrentIndex);
+    }
 
-        @Override
-        public void previous() throws RemoteException {
-            PlaybackService.this.previous();
-        }
+    @MainThread
+    public MediaWrapper getCurrentMediaWrapper() {
+        return PlaybackService.this.getCurrentMedia();
+    }
 
-        @Override
-        public void shuffle() throws RemoteException {
-            PlaybackService.this.shuffle();
-        }
+    @MainThread
+    public void setTime(long time) {
+        MediaPlayer().setTime(time);
+    }
 
-        @Override
-        public void setRepeatType(int t) throws RemoteException {
-            PlaybackService.this.setRepeatType(t);
-        }
+    @MainThread
+    public boolean hasNext() {
+        return mNextIndex != -1;
+    }
 
-        @Override
-        public void setTime(long time) throws RemoteException {
-            MediaPlayer().setTime(time);
-        }
+    @MainThread
+    public boolean hasPrevious() {
+        return mPrevIndex != -1;
+    }
 
-        @Override
-        public boolean hasNext() throws RemoteException {
-            return mNextIndex != -1;
-        }
+    @MainThread
+    public void detectHeadset(boolean enable)  {
+        mDetectHeadset = enable;
+    }
 
-        @Override
-        public boolean hasPrevious() throws RemoteException {
-            return mPrevIndex != -1;
-        }
-
-        @Override
-        public void detectHeadset(boolean enable) throws RemoteException {
-            mDetectHeadset = enable;
-        }
-
-        @Override
-        public float getRate() throws RemoteException {
-            return MediaPlayer().getRate();
-        }
-
-        @Override
-        public void handleVout() throws RemoteException {
-            PlaybackService.this.handleVout();
-        }
-    };
+    @MainThread
+    public float getRate()  {
+        return MediaPlayer().getRate();
+    }
 }

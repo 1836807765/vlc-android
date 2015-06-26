@@ -36,6 +36,7 @@ import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
 
 import org.videolan.libvlc.util.AndroidUtil;
+import org.videolan.vlc.PlaybackService;
 import org.videolan.vlc.PlaybackServiceClient;
 import org.videolan.vlc.R;
 import org.videolan.vlc.gui.browser.MediaBrowserFragment;
@@ -118,7 +119,8 @@ public class HistoryFragment extends MediaBrowserFragment implements IRefreshabl
     }
 
     private void playListIndex(int position) {
-        PlaybackServiceClient.playIndex(getActivity(), null, position);
+        if (mService != null)
+            mService.playIndex(position);
     }
 
     @Override
