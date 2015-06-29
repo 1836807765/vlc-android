@@ -1617,9 +1617,30 @@ public class PlaybackService extends Service {
         MediaPlayer().navigate(where);
     }
 
+
+    @MainThread
+    public int getChapterCount() {
+        return MediaPlayer().getChapterCount();
+    }
+
     @MainThread
     public int getChapterCountForTitle(int title) {
         return MediaPlayer().getChapterCountForTitle(title);
+    }
+
+    @MainThread
+    public String getChapterDescription(int title) {
+        return MediaPlayer().getChapterDescription(title);
+    }
+
+    @MainThread
+    public int getChapter() {
+        return MediaPlayer().getChapter();
+    }
+
+    @MainThread
+    public void setChapter(int chapter) {
+        MediaPlayer().setChapter(chapter);
     }
 
     @MainThread
@@ -1725,6 +1746,25 @@ public class PlaybackService extends Service {
     @MainThread
     public long getSpuDelay() {
         return MediaPlayer().getSpuDelay();
+    }
+
+    @MainThread
+    public float[] getBands() {
+        return MediaPlayer().getBands();
+    }
+    @MainThread
+    public void setEqualizer(float[] bands) {
+        MediaPlayer().setEqualizer(bands);
+    }
+
+    @MainThread
+    public String[] getPresets() {
+        return MediaPlayer().getPresets();
+    }
+
+    @MainThread
+    public float[] getPreset(int index) {
+        return MediaPlayer().getPreset(index);
     }
 
     public static class Client {
