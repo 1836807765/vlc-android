@@ -58,6 +58,7 @@ import android.widget.RemoteViews;
 import android.widget.Toast;
 
 import org.videolan.libvlc.EventHandler;
+import org.videolan.libvlc.IVLCVout;
 import org.videolan.libvlc.LibVLC;
 import org.videolan.libvlc.Media;
 import org.videolan.libvlc.MediaPlayer;
@@ -80,6 +81,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -325,11 +327,17 @@ public class PlaybackService extends Service {
             unregisterReceiver(mRemoteControlClientReceiver);
             mRemoteControlClientReceiver = null;
         }
+
     }
+
 
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
+    }
+
+    public IVLCVout getVLCVout()  {
+        return MediaPlayer().getVLCVout();
     }
 
     @TargetApi(Build.VERSION_CODES.FROYO)
@@ -1330,13 +1338,13 @@ public class PlaybackService extends Service {
     }
 
     @MainThread
-    public int getTime() {
-        return (int) MediaPlayer().getTime();
+    public long getTime() {
+        return MediaPlayer().getTime();
     }
 
     @MainThread
-    public int getLength() {
-        return (int) MediaPlayer().getLength();
+    public long getLength() {
+        return  MediaPlayer().getLength();
     }
 
     /**
@@ -1596,5 +1604,125 @@ public class PlaybackService extends Service {
     @MainThread
     public float getRate()  {
         return MediaPlayer().getRate();
+    }
+
+    @MainThread
+    public void setRate(float rate) {
+        MediaPlayer().setRate(rate);
+    }
+
+    @MainThread
+    public void navigate(int where) {
+        MediaPlayer().navigate(where);
+    }
+
+    @MainThread
+    public int getChapterCountForTitle(int title) {
+        return MediaPlayer().getChapterCountForTitle(title);
+    }
+
+    @MainThread
+    public int getTitleIdx() {
+        return MediaPlayer().getTitle();
+    }
+
+    @MainThread
+    public void setTitleIdx(int title) {
+        MediaPlayer().setTitle(title);
+    }
+
+    @MainThread
+    public int getTitleCount() {
+        return MediaPlayer().getTitleCount();
+    }
+
+    @MainThread
+    public int getVolume() {
+        return MediaPlayer().getVolume();
+    }
+
+    @MainThread
+    public int setVolume(int volume) {
+        return MediaPlayer().setVolume(volume);
+    }
+
+    @MainThread
+    public void setPosition(float pos) {
+        MediaPlayer().setPosition(pos);
+    }
+
+    @MainThread
+    public int getAudioTracksCount() {
+        return MediaPlayer().getAudioTracksCount();
+    }
+
+    @MainThread
+    public Map<Integer,String> getAudioTrackDescription() {
+        return MediaPlayer().getAudioTrackDescription();
+    }
+
+    @MainThread
+    public int getAudioTrack() {
+        return MediaPlayer().getAudioTrack();
+    }
+
+    @MainThread
+    public int setAudioTrack(int index) {
+        return MediaPlayer().setAudioTrack(index);
+    }
+
+    @MainThread
+    public int getVideoTracksCount() {
+        return MediaPlayer().getVideoTracksCount();
+    }
+
+    @MainThread
+    public int setVideoTrackEnabled(boolean enabled) {
+        return MediaPlayer().setVideoTrackEnabled(enabled);
+    }
+
+    @MainThread
+    public int addSubtitleTrack(String path) {
+        return MediaPlayer().addSubtitleTrack(path);
+    }
+
+    @MainThread
+    public Map<Integer,String> getSpuTrackDescription() {
+        return MediaPlayer().getSpuTrackDescription();
+    }
+
+    @MainThread
+    public int getSpuTrack() {
+        return MediaPlayer().getSpuTrack();
+    }
+
+    @MainThread
+    public int setSpuTrack(int index) {
+        return MediaPlayer().setSpuTrack(index);
+    }
+
+    @MainThread
+    public int getSpuTracksCount() {
+        return MediaPlayer().getSpuTracksCount();
+    }
+
+    @MainThread
+    public int setAudioDelay(long delay) {
+        return MediaPlayer().setAudioDelay(delay);
+    }
+
+    @MainThread
+    public long getAudioDelay() {
+        return MediaPlayer().getAudioDelay();
+    }
+
+    @MainThread
+    public int setSpuDelay(long delay) {
+        return MediaPlayer().setSpuDelay(delay);
+    }
+
+    @MainThread
+    public long getSpuDelay() {
+        return MediaPlayer().getSpuDelay();
     }
 }
