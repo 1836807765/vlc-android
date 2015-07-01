@@ -1523,7 +1523,7 @@ public class PlaybackService extends Service {
         media.setEventListener(mMediaListener);
         mMediaPlayer.setMedia(media);
         media.release();
-        mMediaPlayer.setEqualizer(VLCOptions.getEqualizer());
+        mMediaPlayer.setEqualizer(VLCOptions.getEqualizer(this));
         mMediaPlayer.setVideoTitleDisplay(MediaPlayer.Position.Disable, 0);
         changeAudioFocus(true);
         mMediaPlayer.play();
